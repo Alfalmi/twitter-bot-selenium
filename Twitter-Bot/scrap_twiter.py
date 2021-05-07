@@ -1,0 +1,130 @@
+# importing all modules/packages
+import csv
+import selenium
+from selenium.webdriver.support import expected_conditions as EC
+from getpass import getpass
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+import time
+
+
+options = Options()
+options.add_argument("start-maximized")
+driver = selenium.webdriver.Chrome(options=options)
+
+def get_tweet_data(pack_tweet):
+    """Extract data from tweet data"""
+    user_name = card.find_element_by_xpath(".// span").text
+    handle = card.find_element_by_xpath('.//span[contains(text(), "@")]').text
+
+    try:
+        post_date = card.find_element_by_xpath('//time').get_attribute('datetime')
+    except NoSuchElementException:
+        return
+
+    comment = card.find_element_by_xpath('.//div[2]/div[2]/div[1]').text
+    resp = card.find_element_by_xpath('.//div[2]/div[2]/div[2]').text
+    reply = card.find_element_by_xpath('.//div[@data-testid="reply"]').text
+    retweet = card.find_element_by_xpath('.//div[@data-testid="retweet"]').text
+    likes = card.find_element_by_xpath('.//div[@data-testid="like"]').text
+
+
+     _tweet = (user_name, handle, post_date, cnt_text, reply, retweet, likes)
+     return tweet
+
+
+# creating an instane of our webdriver and applying options
+
+
+
+# Loop through until we find a new window handle
+
+
+
+# creating a function to read from our text file which returns our email and password
+def account_info():
+    with open('account_info.txt', 'r') as f:
+        info = f.read().split()
+        email = info[0]
+        password = info[1]
+    return email, password
+
+
+# storing email and password
+email, password = account_info()
+
+# opens Chrome on Twitter's login page
+
+
+email_xpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div[2]/form/div/div[1]/label/div/div[2]/div/input'
+password_xpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div[2]/form/div/div[2]/label/div/div[2]/div/input'
+login_xpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div[2]/form/div/div[3]/div'
+
+time.sleep(3)
+
+# interacts with Twitter's login page, logs in and search
+# LOGIN
+
+driver.find_element_by_xpath(email_xpath).send_keys(email)
+time.sleep(.5)
+driver.find_element_by_xpath(password_xpath).send_keys(password)
+time.sleep(1)
+driver.find_element_by_xpath(login_xpath).click()
+time.sleep(1.5)
+
+# search text input
+search_xpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[2]/div/div[2]/div/div/div/div[1]/div/div/div/form/div[1]/div/div/div[2]/input'
+time.sleep(.5)
+driver.find_element_by_xpath(search_xpath).send_keys('#MeHacesCrecer')
+time.sleep(.5)
+driver.find_element_by_xpath(search_xpath).send_keys(Keys.RETURN)
+time.sleep(1.5)
+
+# interact with the result page
+
+driver.find_element_by_link_text('Latest').click()
+time.sleep(3)
+
+# Get all tweets of the page
+
+data = []
+tweet_ids = set()
+last_position = driver.execute_script("return window.pageYOffset;")
+scrolling = True
+
+while scrolling:
+    page_cards = driver.find_elements_by_xpath('//div[@data-testid="tweet"]')
+    for card in page_cards[-15:]:
+        tweet = get_tweet_data(card)
+        if tweet:
+            tweet_id = ''.join(tweet)
+            if tweet_id not in tweet_ids:
+                tweet_ids.add(tweet_id)
+                data.append(tweet)
+    scroll_attempt = 0
+    while True:
+        # check position
+        driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')
+        time.sleep(1)
+        curr_position = driver.execute_script("return window.pageYOffset;")
+        if last_position == curr_position:
+            scroll_attempt += 1
+
+            # end of scroll region
+            if scroll_attempt >= 3:
+                scrolling = False
+                break
+            else:
+                time.sleep(2)  # attempt to scroll again
+        else:
+            last_position = curr_position
+            break
+
+print(len(data))
+
+with open('polynote_tweets.csv', 'w', newline='', encoding='utf-8') as f:
+    header = ['UserName', 'Handle', 'Timestamp', 'Comments', 'Likes', 'Retweets', 'Text']
+    writer = csv.writer(f)
+    writer.writerow(header)
+    writer.writerows(data)
